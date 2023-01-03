@@ -6,8 +6,8 @@ use proj_sys::{
     proj_context_destroy, proj_context_errno, proj_context_get_url_endpoint,
     proj_context_is_network_enabled, proj_context_set_search_paths, proj_context_set_url_endpoint,
     proj_create, proj_create_crs_to_crs, proj_destroy, proj_errno_string, proj_get_area_of_use,
-    proj_grid_cache_set_enable, proj_info, proj_normalize_for_visualization, proj_pj_info,
-    proj_trans, proj_trans_array, proj_trans_bounds, PJconsts, PJ_AREA, PJ_CONTEXT, PJ_COORD,
+    proj_get_type, proj_grid_cache_set_enable, proj_info, proj_normalize_for_visualization,
+    proj_pj_info, proj_trans, proj_trans_array, PJconsts, PJ_AREA, PJ_CONTEXT, PJ_COORD,
     PJ_DIRECTION_PJ_FWD, PJ_DIRECTION_PJ_INV, PJ_INFO, PJ_LPZT, PJ_XYZT,
 };
 use std::{
@@ -123,6 +123,8 @@ pub enum ProjError {
     DownloadError(String, String, u8),
     #[error("The current definition could not be retrieved")]
     Definition,
+    #[error("The object's type could not be retrieved")]
+    TypeError,
 }
 
 #[derive(Error, Debug)]
@@ -714,6 +716,12 @@ impl Proj {
         self.proj_info().definition.ok_or(ProjError::Definition)
     }
 
+    ///
+    pub fn get_type(&self) -> Result<ProjType, ProjError> {
+        ProjType::from_u32(unsafe { proj_get_type(self.c_proj) } as u32)
+            .ok_or_else(|| ProjError::TypeError)
+    }
+
     /// Project geodetic coordinates (in radians) into the projection specified by `definition`
     ///
     /// **Note:** specifying `inverse` as `true` carries out an inverse projection *to* geodetic coordinates
@@ -1116,6 +1124,59 @@ pub struct ProjInfo {
     pub has_inverse: bool,
     pub accuracy: f64,
 }
+
+macro_rules! def_pj_type {
+    ($($variant:ident = $enum:ident,)*) => {
+        ///
+        #[derive(Copy, Clone, Debug)]
+        #[repr(u32)]
+        pub enum ProjType {
+            $($variant = proj_sys::$enum as u32,)*
+        }
+
+        impl ProjType {
+            fn from_u32(val: u32) -> Option<Self> {
+                match val {
+                    $(proj_sys::$enum => Some(Self::$variant),)*
+                    _ => None,
+                }
+            }
+        }
+    }
+}
+
+def_pj_type!(
+    Unknown = PJ_TYPE_PJ_TYPE_UNKNOWN,
+    Ellipsoid = PJ_TYPE_PJ_TYPE_ELLIPSOID,
+    PrimeMeridian = PJ_TYPE_PJ_TYPE_PRIME_MERIDIAN,
+    GeodeticReferenceFrame = PJ_TYPE_PJ_TYPE_GEODETIC_REFERENCE_FRAME,
+    DynamicGeodeticReferenceFrame = PJ_TYPE_PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME,
+    VerticalReferenceFrame = PJ_TYPE_PJ_TYPE_VERTICAL_REFERENCE_FRAME,
+    DynamicVerticalReferenceFrame = PJ_TYPE_PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME,
+    DatumEnsemble = PJ_TYPE_PJ_TYPE_DATUM_ENSEMBLE,
+    // abstract
+    Crs = PJ_TYPE_PJ_TYPE_CRS,
+    GeodeticCrs = PJ_TYPE_PJ_TYPE_GEODETIC_CRS,
+    GeocentricCrs = PJ_TYPE_PJ_TYPE_GEOCENTRIC_CRS,
+    // abstract
+    GeographicCrs = PJ_TYPE_PJ_TYPE_GEOGRAPHIC_CRS,
+    Geographic2DCrs = PJ_TYPE_PJ_TYPE_GEOGRAPHIC_2D_CRS,
+    Geographic3DCrs = PJ_TYPE_PJ_TYPE_GEOGRAPHIC_3D_CRS,
+    VerticalCrs = PJ_TYPE_PJ_TYPE_VERTICAL_CRS,
+    ProjectedCrs = PJ_TYPE_PJ_TYPE_PROJECTED_CRS,
+    CompoundCrs = PJ_TYPE_PJ_TYPE_COMPOUND_CRS,
+    TemporalCrs = PJ_TYPE_PJ_TYPE_TEMPORAL_CRS,
+    EngineeringCrs = PJ_TYPE_PJ_TYPE_ENGINEERING_CRS,
+    BoundCrs = PJ_TYPE_PJ_TYPE_BOUND_CRS,
+    OtherCrs = PJ_TYPE_PJ_TYPE_OTHER_CRS,
+    Conversion = PJ_TYPE_PJ_TYPE_CONVERSION,
+    Transformation = PJ_TYPE_PJ_TYPE_TRANSFORMATION,
+    ConcatenatedOperation = PJ_TYPE_PJ_TYPE_CONCATENATED_OPERATION,
+    OtherCoordinateOperation = PJ_TYPE_PJ_TYPE_OTHER_COORDINATE_OPERATION,
+    TemporalDatum = PJ_TYPE_PJ_TYPE_TEMPORAL_DATUM,
+    EngineeringDatum = PJ_TYPE_PJ_TYPE_ENGINEERING_DATUM,
+    ParametricDatum = PJ_TYPE_PJ_TYPE_PARAMETRIC_DATUM,
+);
 
 impl fmt::Debug for Proj {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
