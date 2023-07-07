@@ -7,8 +7,8 @@ use proj_sys::{
     proj_context_is_network_enabled, proj_context_set_search_paths, proj_context_set_url_endpoint,
     proj_create, proj_create_crs_to_crs, proj_destroy, proj_errno_string, proj_get_area_of_use,
     proj_get_type, proj_grid_cache_set_enable, proj_info, proj_normalize_for_visualization,
-    proj_pj_info, proj_trans, proj_trans_array, PJconsts, PJ_AREA, PJ_CONTEXT, PJ_COORD,
-    PJ_DIRECTION_PJ_FWD, PJ_DIRECTION_PJ_INV, PJ_INFO, PJ_LPZT, PJ_XYZT,
+    proj_pj_info, proj_trans, proj_trans_array, proj_trans_bounds, PJconsts, PJ_AREA, PJ_CONTEXT,
+    PJ_COORD, PJ_DIRECTION_PJ_FWD, PJ_DIRECTION_PJ_INV, PJ_INFO, PJ_LPZT, PJ_XYZT,
 };
 use std::{
     convert, ffi,
